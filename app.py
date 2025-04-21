@@ -12,11 +12,12 @@ import os
 # def home():
 #     return "Tracking Pixel Server is Running!"/
 
-from flask import Flask, send_file, request
+from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
 from sqlalchemy import create_engine, Column, String, Integer
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+
 
 app = Flask(__name__)
 CORS(app)
@@ -52,14 +53,17 @@ def track_email(email_id):
     # Return a 1x1 transparent image
     return send_file("pixel.png", mimetype='image/png')
 
-# For testing the status of an email
 @app.route("/status/<email_id>")
 def get_status(email_id):
     entry = session.query(Tracking).filter_by(email_id=email_id).first()
     if entry:
-        return {"email_id": entry.email_id, "status": entry.status, "click_count": entry.click_count}
+        return jsonify({
+            "email_id": entry.email_id,
+            "status": entry.status,
+            "click_count": entry.click_count
+        }), 200
     else:
-        return {"error": "Not found"}, 404
+        return jsonify({"error": "Not found"}), 404
 
 
 
