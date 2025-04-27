@@ -4,7 +4,7 @@ from flask_cors import CORS
 from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
-from datetime import datetime
+from datetime import datetime,timezone
 
 
 app = Flask(__name__)
@@ -43,7 +43,7 @@ def track_email(unique_id):
         # Add a new row with a timestamp, user agent, and IP address
         new_entry = Tracking(
             unique_id=unique_id,
-            timestamp=datetime.now(),
+            timestamp=datetime.now(timezone.utc),
             user_agent=user_agent,
             ip_address=ip_address
         )
