@@ -19,10 +19,11 @@ session = Session()
 
 class Tracking(Base):
     __tablename__ = 'tracking'
-    unique_id = Column(String, primary_key=True)
+    log_id = Column(Integer, primary_key=True, autoincrement=True)  # New primary key column
+    unique_id = Column(String, nullable=False)
     timestamp = Column(DateTime, default=datetime.now)
-    user_agent = Column(String)  # New column to store user agent
-    ip_address = Column(String)  # New column to store IP address
+    user_agent = Column(String)  # Column to store user agent
+    ip_address = Column(String)  # Column to store IP address
 
 Base.metadata.create_all(engine)
 
