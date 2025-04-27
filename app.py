@@ -1,22 +1,10 @@
-# from flask import Flask, send_file
 import os
-
-# app = Flask(__name__)
-
-# @app.route('/track/<email_id>')
-# def track(email_id):
-#     print(f"Tracking opened email: {email_id}")
-#     return send_file("pixel.png", mimetype='image/png')
-
-# @app.route('/')
-# def home():
-#     return "Tracking Pixel Server is Running!"/
-
 from flask import Flask, send_file, request, jsonify
 from flask_cors import CORS
-from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy import create_engine, Column, String, Integer, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
+from datetime import datetime
 
 
 app = Flask(__name__)
@@ -31,37 +19,58 @@ session = Session()
 
 class Tracking(Base):
     __tablename__ = 'tracking'
-    email_id = Column(String, primary_key=True)
-    status = Column(String, default="not opened")
-    click_count = Column(Integer, default=0)
+    unique_id = Column(String, primary_key=True)
+    timestamp = Column(DateTime, default=datetime.now)
+    user_agent = Column(String)  # New column to store user agent
+    ip_address = Column(String)  # New column to store IP address
 
 Base.metadata.create_all(engine)
 
 # Pixel route for tracking email open
-@app.route("/track/<email_id>")
-def track_email(email_id):
-    # Track email open and increment click count
-    entry = session.query(Tracking).filter_by(email_id=email_id).first()
-    if entry:
-        entry.status = "opened"
-        entry.click_count += 1
-    else:
-        entry = Tracking(email_id=email_id, status="opened", click_count=1)
-        session.add(entry)
-    session.commit()
+@app.route("/track/<unique_id>")
+def track_email(unique_id):
+    try:
+        # Get the user agent and IP address from the request
+        user_agent = request.headers.get('User-Agent', 'Unknown')
+        if not user_agent:
+            user_agent = 'Unknown'  # Default value if user agent is missing or invalid
 
-    # Return a 1x1 transparent image
-    return send_file("pixel.png", mimetype='image/png')
+        ip_address = request.remote_addr
+        if not ip_address:
+            ip_address = '0.0.0.0'  # Default value if IP address is missing or invalid
 
-@app.route("/status/<email_id>")
-def get_status(email_id):
-    entry = session.query(Tracking).filter_by(email_id=email_id).first()
-    if entry:
-        return jsonify({
-            "email_id": entry.email_id,
-            "status": entry.status,
-            "click_count": entry.click_count
-        }), 200
+        # Add a new row with a timestamp, user agent, and IP address
+        new_entry = Tracking(
+            unique_id=unique_id,
+            timestamp=datetime.now(),
+            user_agent=user_agent,
+            ip_address=ip_address
+        )
+        session.add(new_entry)
+        session.commit()
+
+        # Return a 1x1 transparent image
+        return send_file("pixel.png", mimetype='image/png')
+    except Exception as e:
+        # Log the error and return a generic error response
+        print(f"Error tracking email: {e}")
+        return jsonify({"error": "Internal Server Error"}), 500
+
+@app.route("/status/<unique_id>")
+def get_status(unique_id):
+    # Fetch all rows for the given unique_id
+    entries = session.query(Tracking).filter_by(unique_id=unique_id).all()
+    if entries:
+        # Return all rows as a list of dictionaries
+        return jsonify([
+            {
+                "unique_id": entry.unique_id,
+                "timestamp": entry.timestamp.strftime("%Y-%m-%d %H:%M:%S"),
+                "user_agent": entry.user_agent,  # Include user agent
+                "ip_address": entry.ip_address  # Include IP address
+            }
+            for entry in entries
+        ]), 200
     else:
         return jsonify({"error": "Not found"}), 404
 
